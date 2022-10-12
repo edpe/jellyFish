@@ -1,12 +1,12 @@
 {
-  "name": "untangled-template",
+  "name": "jellyfish",
   "version": "1.0.0",
-  "description": "p5 example project for untangled",
+  "description": "jellyfish",
   "main": "index.js",
   "scripts": {
     "dev": "browser-sync start --server -f -w"
   },
-  "author": "neontribe",
+  "author": "Ed Perkins",
   "license": "ISC",
   "dependencies": {
     "browser-sync": "^2.26.5",

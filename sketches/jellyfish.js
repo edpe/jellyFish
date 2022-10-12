@@ -1,4 +1,6 @@
 var mr = 0.01;
+let heights = [80, 100, 140, 180];
+let speeds = [0.18, 0.16, 0.12, 0.1];
 
 function Jellyfish(x, y, dna) {
   this.acceleration = createVector(0, 0);
@@ -7,8 +9,17 @@ function Jellyfish(x, y, dna) {
   this.r = 40;
   this.maxspeed = 1;
   this.maxforce = 0.5;
+  this.t = 0.01;
 
-  this.health = 5;
+  this.health = 7;
+
+  this.size = random([0, 1, 2, 3]);
+  this.height = heights[this.size];
+  this.maxWidth = 0;
+  this.bones = [];
+  this.LFO = new Tone.LFO(speeds[this.size], 0, 10);
+  this.meter = new Tone.Meter();
+  this.level;
 
   this.dna = [];
   if (dna === undefined) {
@@ -40,6 +51,43 @@ function Jellyfish(x, y, dna) {
     }
   }
 
+  this.build = function () {
+    for (var i = 0; i < 10; i++) {
+      this.bones.push({
+        right: {
+          x1: 5,
+          y1: -this.height / 2,
+          x2: 5 + this.t * noise(random(4)),
+          x2Original: 0 + this.t * noise(random(4)),
+          y2: -this.height / 2 + (this.height / 3) * 1.8,
+          x3: 5 + this.t * noise(random(52)),
+          x3Original: 0 + this.t * noise(random(52)),
+          y3: -this.height / 2 + (this.height / 3) * 2.5,
+          x4: 0,
+          y4: -this.height / 2 + this.height,
+        },
+        left: {
+          x1: -5,
+          y1: -this.height / 2,
+          x2: -5 - this.t * noise(random(34)),
+          x2Original: 0 - this.t * noise(random(34)),
+          y2: -this.height / 2 + (this.height / 3) * 1.8,
+          x3: -5 - this.t * noise(random(84)),
+          x3Original: 0 - this.t * noise(random(84)),
+          y3: -this.height / 2 + (this.height / 3) * 2.5,
+          x4: 0,
+          y4: -this.height / 2 + this.height,
+        },
+      });
+      this.t += random(8);
+    }
+    this.widthLeft = this.xpos - this.t * noise(random(34));
+    this.widthRight = this.xpos + this.t * noise(random(4));
+
+    this.LFO.start();
+    this.LFO.connect(this.meter);
+  };
+
   // Method to update location
   this.update = function () {
     this.health -= 0.001;
@@ -54,7 +102,6 @@ function Jellyfish(x, y, dna) {
   };
 
   this.applyForce = function (force) {
-    // We could add mass here if we want A = F / M
     this.acceleration.add(force);
   };
 
@@ -70,10 +117,22 @@ function Jellyfish(x, y, dna) {
   };
 
   this.clone = function () {
-    if (random(1) < 0.0001) {
+    if (random(1) < 0.001) {
       return new Jellyfish(this.position.x, this.position.y, this.dna);
     } else {
       return null;
+    }
+  };
+
+  this.animate = function () {
+    this.level = this.meter.getLevel();
+    let mappedLevel = map(this.level, -52, 30, 0, 5);
+
+    for (var i = 0; i < this.bones.length; i++) {
+      this.bones[i].left.x2 = this.bones[i].left.x2Original - mappedLevel * i;
+      this.bones[i].left.x3 = this.bones[i].left.x3Original - mappedLevel * i;
+      this.bones[i].right.x2 = this.bones[i].right.x2Original + mappedLevel * i;
+      this.bones[i].right.x3 = this.bones[i].right.x3Original + mappedLevel * i;
     }
   };
 
@@ -94,8 +153,6 @@ function Jellyfish(x, y, dna) {
       }
     }
 
-    // This is the moment of eating!
-
     if (closest != null) {
       return this.seek(closest);
     }
@@ -103,20 +160,14 @@ function Jellyfish(x, y, dna) {
     return createVector(0, 0);
   };
 
-  // A method that calculates a steering force towards a target
-  // STEER = DESIRED MINUS VELOCITY
   this.seek = function (target) {
-    var desired = p5.Vector.sub(target, this.position); // A vector pointing from the location to the target
-
-    // Scale to maximum speed
+    var desired = p5.Vector.sub(target, this.position);
     desired.setMag(this.maxspeed);
 
-    // Steering = Desired minus velocity
     var steer = p5.Vector.sub(desired, this.velocity);
-    steer.limit(this.maxforce); // Limit to maximum steering force
+    steer.limit(this.maxforce);
 
     return steer;
-    //this.applyForce(steer);
   };
 
   this.dead = function () {
@@ -124,38 +175,41 @@ function Jellyfish(x, y, dna) {
   };
 
   this.display = function () {
-    // Draw a triangle rotated in the direction of velocity
     var angle = this.velocity.heading() + PI / 2;
 
     push();
     translate(this.position.x, this.position.y);
     rotate(angle);
 
-    var gr = color(255, 255, 255);
-    var rd = color(0, 0, 100);
+    var gr = color(255, 255, 255, 60);
+    var rd = color(0, 0, 100, 60);
     var col = lerpColor(rd, gr, this.health);
 
-    for (var i = 0; i < 30; i++) {
-      let t = 0.1;
-      var x1 = 0;
-      var y1 = 0;
-
-      var x2 = 100 * noise(0 + t);
-      var y2 = 200 * noise(0 + t);
-
-      var x3 = 100 * noise(0 + t);
-      var y3 = 200 * noise(0 + t);
-
-      var x4 = 0;
-      var y4 = 200;
-      console.log(top);
-      noFill();
-      stroke(col);
-      strokeWeight(1);
-      bezier(x1, y1, x2, y2, x3, y3, x4, y4);
-      t += 0.01;
+    fill(255, 255, 200, this.level / 4);
+    stroke(col);
+    strokeWeight(1);
+    for (var i = 0; i < this.bones.length; i++) {
+      bezier(
+        this.bones[i].left.x1,
+        this.bones[i].left.y1,
+        this.bones[i].left.x2,
+        this.bones[i].left.y2,
+        this.bones[i].left.x3,
+        this.bones[i].left.y3,
+        this.bones[i].left.x4,
+        this.bones[i].left.y4
+      );
+      bezier(
+        this.bones[i].right.x1,
+        this.bones[i].right.y1,
+        this.bones[i].right.x2,
+        this.bones[i].right.y2,
+        this.bones[i].right.x3,
+        this.bones[i].right.y3,
+        this.bones[i].right.x4,
+        this.bones[i].right.y4
+      );
     }
-
     pop();
   };
 
